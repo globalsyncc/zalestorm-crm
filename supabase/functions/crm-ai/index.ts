@@ -12,6 +12,15 @@ serve(async (req) => {
   }
 
   try {
+    // Verify authentication - JWT verification is now enforced at config level
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Non autorisé - authentification requise" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { action, messages, contactId, dealId, context } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
@@ -19,8 +28,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Get auth header and create supabase client for data access
-    const authHeader = req.headers.get("Authorization");
+    // Create supabase client for data access with authenticated user's token
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_ANON_KEY") ?? "",
