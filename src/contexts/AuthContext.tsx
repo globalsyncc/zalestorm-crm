@@ -61,14 +61,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: companyError };
     }
 
-    // Then sign up the user with metadata
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // Sign up the user with metadata - the database trigger will handle
+    // profile creation with company_id and role assignment atomically
+    const { error: authError } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
+          company_id: companyId, // Passed to trigger for atomic assignment
         }
       }
     });
@@ -78,19 +80,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: authError };
     }
 
-    // Update profile with company_id and assign owner role
-    if (authData.user) {
-      await supabase
-        .from('profiles')
-        .update({ company_id: companyId })
-        .eq('id', authData.user.id);
-
-      await supabase
-        .from('user_roles')
-        .update({ role: 'owner' })
-        .eq('user_id', authData.user.id);
-    }
-
+    // Role assignment is now handled atomically in the database trigger
+    // No client-side race condition possible
     return { error: null };
   };
 
